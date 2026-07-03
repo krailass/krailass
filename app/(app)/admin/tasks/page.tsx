@@ -1,0 +1,11 @@
+import { PageHeader } from '@/components/layout/AppShell';
+import { TasksView } from '@/components/admin/TasksView';
+
+export default function AdminTasksPage() {
+  return (
+    <>
+      <PageHeader sub="กลุ่มบริหารทั่วไป" title="งานทั้งหมด" />
+      <TasksView />
+    </>
+  );
+}
