@@ -33,8 +33,11 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'));
+  // API routes must never be redirected to the HTML login page — they enforce
+  // their own auth and return JSON (e.g. 401). The session is still refreshed above.
+  const isApi = path.startsWith('/api');
 
-  if (!user && !isPublic) {
+  if (!user && !isPublic && !isApi) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('next', path);

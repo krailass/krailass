@@ -2,11 +2,16 @@
 // Run AFTER applying migrations, with env set:
 //   node --env-file=.env.local scripts/seed.mjs
 import { createClient } from '@supabase/supabase-js';
+import { createHash } from 'node:crypto';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const domain = process.env.NEXT_PUBLIC_LOGIN_EMAIL_DOMAIN || 'sawai.local';
 const PASSWORD = process.env.SEED_PASSWORD || 'sawai1234';
+
+// Must match lib/pin.ts derivePassword()
+const PEPPER = process.env.PIN_PEPPER || serviceKey || 'sawai-pin-pepper-v1';
+const derivePassword = (pin) => 'pin_' + createHash('sha256').update(`${PEPPER}:${pin}`).digest('hex');
 
 if (!url || !serviceKey) {
   console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
@@ -19,12 +24,12 @@ const email = (u) => `${u}@${domain}`;
 const ADMIN = { username: 'admin', full_name: 'นายศึกษา จุนเสริม', role: 'admin', zone: 'กลุ่มบริหารทั่วไป', phone: '' };
 
 const JANITORS = [
-  { username: 'chanin', full_name: 'นายชนินทร์ยศ มั่นหมาย', zone: 'เขตอาคาร 1–2', phone: '081-234-5678' },
-  { username: 'somchai', full_name: 'นายสมชาย ใจดี', zone: 'เขตอาคาร 3', phone: '082-345-6789' },
-  { username: 'boonmee', full_name: 'นายบุญมี ทองคำ', zone: 'โรงอาหาร / หอประชุม', phone: '083-456-7890' },
-  { username: 'sunee', full_name: 'นางสุนีย์ พุ่มพวง', zone: 'ทำความสะอาดอาคารเรียน', phone: '084-567-8901' },
-  { username: 'wirat', full_name: 'นายวิรัตน์ แก้วมณี', zone: 'งานไฟฟ้า–ประปา', phone: '085-678-9012' },
-  { username: 'prasong', full_name: 'นายประสงค์ ศรีสุข', zone: 'ภูมิทัศน์ / สวน', phone: '086-789-0123' },
+  { username: 'chanin', full_name: 'นายชนินทร์ยศ มั่นหมาย', zone: 'เขตอาคาร 1–2', phone: '081-234-5678', pin: '1001' },
+  { username: 'somchai', full_name: 'นายสมชาย ใจดี', zone: 'เขตอาคาร 3', phone: '082-345-6789', pin: '1002' },
+  { username: 'boonmee', full_name: 'นายบุญมี ทองคำ', zone: 'โรงอาหาร / หอประชุม', phone: '083-456-7890', pin: '1003' },
+  { username: 'sunee', full_name: 'นางสุนีย์ พุ่มพวง', zone: 'ทำความสะอาดอาคารเรียน', phone: '084-567-8901', pin: '1004' },
+  { username: 'wirat', full_name: 'นายวิรัตน์ แก้วมณี', zone: 'งานไฟฟ้า–ประปา', phone: '085-678-9012', pin: '1005' },
+  { username: 'prasong', full_name: 'นายประสงค์ ศรีสุข', zone: 'ภูมิทัศน์ / สวน', phone: '086-789-0123', pin: '1006' },
 ];
 
 const TASKS = [
@@ -79,6 +84,17 @@ async function main() {
     if (roleErr) throw new Error(`promote admin: ${roleErr.message}`);
   }
 
+  // Assign a 4-digit PIN + matching derived auth password to each janitor.
+  console.log('Assigning janitor PINs…');
+  for (const j of JANITORS) {
+    const id = idByName.get(j.full_name);
+    if (!id) continue;
+    const { error: pwErr } = await sb.auth.admin.updateUserById(id, { password: derivePassword(j.pin) });
+    if (pwErr) throw new Error(`set pin password ${j.username}: ${pwErr.message}`);
+    const { error: pinErr } = await sb.from('profiles').update({ pin: j.pin }).eq('id', id);
+    if (pinErr) throw new Error(`set pin ${j.username}: ${pinErr.message}`);
+  }
+
   const { count } = await sb.from('tasks').select('id', { count: 'exact', head: true });
   if (count && count > 0) {
     console.log(`Tasks already present (${count}); skipping task seed.`);
@@ -119,8 +135,9 @@ async function main() {
 
 function done() {
   console.log('\nDone. Login credentials:');
-  console.log(`  admin  : admin  / ${PASSWORD}`);
-  console.log(`  janitor: chanin, somchai, boonmee, sunee, wirat, prasong  / ${PASSWORD}`);
+  console.log(`  admin (username/password): admin / ${PASSWORD}`);
+  console.log('  janitors (PIN login):');
+  for (const j of JANITORS) console.log(`    ${j.full_name}  ->  PIN ${j.pin}`);
 }
 
 main().catch((e) => {

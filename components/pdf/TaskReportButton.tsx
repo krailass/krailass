@@ -8,7 +8,7 @@ import { fetchTaskPhotos, type SB } from '@/lib/api';
 import { Button } from '@/components/ui/primitives';
 import { downloadBlob, urlToDataUrl } from '@/lib/pdf/download';
 import { SCHOOL, SIGNATORIES } from '@/lib/constants';
-import { fmtOfficialDate, fmtThaiDateFull } from '@/lib/utils';
+import { fmtOfficialDate, fmtThaiDateFull, hhmm } from '@/lib/utils';
 import type { DecoratedTask } from '@/lib/task-view';
 
 export function TaskReportButton({ task }: { task: DecoratedTask }) {
@@ -41,10 +41,10 @@ export function TaskReportButton({ task }: { task: DecoratedTask }) {
           location={task.location || ''}
           title={task.title}
           materials={task.materials || ''}
-          timeStart={task.time_start || ''}
-          timeEnd={task.time_end || ''}
+          timeStart={hhmm(task.time_start)}
+          timeEnd={hhmm(task.time_end)}
           assignDateText={fmtThaiDateFull(task.assigned_date)}
-          assignTimeText={task.assigned_time || ''}
+          assignTimeText={hhmm(task.assigned_time)}
           statusDone={task.status === 'done'}
           statusProgress={task.status === 'progress'}
           beforeImgs={beforeUrls}

@@ -1,19 +1,22 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { Bell, CheckCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSupabaseBrowser } from '@/lib/supabase/client';
 import { markAllNotificationsRead, markNotificationRead } from '@/lib/api';
 import { useNotifications, qk } from '@/hooks/useAppData';
+import type { NotificationRow } from '@/lib/database.types';
 import { useProfile } from './ProfileContext';
 import { fmtThaiDate } from '@/lib/utils';
 
 export function NotificationBell() {
-  const { userId } = useProfile();
+  const { userId, profile } = useProfile();
   const { data: items = [] } = useNotifications(userId);
   const qc = useQueryClient();
+  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const unread = items.filter((n) => !n.is_read).length;
 
@@ -23,12 +26,21 @@ export function NotificationBell() {
     setOpen((v) => !v);
   }
 
-  async function readOne(id: string) {
+  function targetFor(n: NotificationRow): string {
+    if (profile.role === 'admin') return n.type === 'reported' ? '/admin/approve' : '/admin/tasks';
+    return '/janitor/board';
+  }
+
+  async function openNotif(n: NotificationRow) {
+    setOpen(false);
+    router.push(targetFor(n));
     try {
-      await markNotificationRead(getSupabaseBrowser(), id);
-      refresh();
+      if (!n.is_read) {
+        await markNotificationRead(getSupabaseBrowser(), n.id);
+        refresh();
+      }
     } catch {
-      toast.error('อัปเดตการแจ้งเตือนไม่สำเร็จ');
+      /* navigation already happened; read-state is best-effort */
     }
   }
 
@@ -83,7 +95,7 @@ export function NotificationBell() {
               {items.map((n) => (
                 <button
                   key={n.id}
-                  onClick={() => readOne(n.id)}
+                  onClick={() => openNotif(n)}
                   className={`flex w-full flex-col items-start gap-0.5 border-b border-line px-4 py-3 text-left last:border-b-0 ${
                     n.is_read ? 'bg-card' : 'bg-[#F1F7F5]'
                   }`}

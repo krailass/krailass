@@ -3,10 +3,12 @@
 import * as React from 'react';
 import { CalendarDays, List } from 'lucide-react';
 import { useTasks, useJanitors } from '@/hooks/useAppData';
+import type { DecoratedTask } from '@/lib/task-view';
 import { Loading, ErrorBox } from '@/components/ui/states';
 import { Select } from '@/components/ui/form';
 import { TasksCalendar } from './TasksCalendar';
 import { TasksTable } from './TasksTable';
+import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog';
 
 type View = 'calendar' | 'list';
 
@@ -15,6 +17,7 @@ export function TasksView() {
   const { data: janitors = [] } = useJanitors();
   const [view, setView] = React.useState<View>('calendar');
   const [assignee, setAssignee] = React.useState('all');
+  const [detail, setDetail] = React.useState<DecoratedTask | null>(null);
 
   if (isLoading) return <Loading />;
   if (error) return <ErrorBox error={error} />;
@@ -60,7 +63,13 @@ export function TasksView() {
         </div>
       </div>
 
-      {view === 'calendar' ? <TasksCalendar tasks={filtered} /> : <TasksTable tasks={filtered} />}
+      {view === 'calendar' ? (
+        <TasksCalendar tasks={filtered} onSelectTask={setDetail} />
+      ) : (
+        <TasksTable tasks={filtered} onSelectTask={setDetail} />
+      )}
+
+      <TaskDetailDialog task={detail} onClose={() => setDetail(null)} />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { SideNav } from './SideNav';
 import { BottomNav } from './BottomNav';
 import { RealtimeSync } from './RealtimeSync';
 import { PushPrompt } from './PushPrompt';
+import { UrgentAlert } from './UrgentAlert';
 
 export function AppShell({
   userId,
@@ -32,6 +33,7 @@ export function AppShell({
         <BottomNav />
       </div>
       <PushPrompt />
+      <UrgentAlert />
     </ProfileProvider>
   );
 }

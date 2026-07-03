@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Trash2, UserPlus, KeyRound } from 'lucide-react';
 import { useJanitors, useTasks, qk } from '@/hooks/useAppData';
@@ -15,21 +15,35 @@ import { initial } from '@/lib/utils';
 interface AddState {
   full_name: string;
   username: string;
-  password: string;
+  pin: string;
   zone: string;
   phone: string;
 }
 
-const BLANK: AddState = { full_name: '', username: '', password: '', zone: '', phone: '' };
+const BLANK: AddState = { full_name: '', username: '', pin: '', zone: '', phone: '' };
+const digits = (v: string) => v.replace(/\D/g, '').slice(0, 4);
+
+function usePins() {
+  return useQuery({
+    queryKey: ['staff-pins'],
+    queryFn: async (): Promise<Record<string, string | null>> => {
+      const res = await fetch('/api/staff');
+      if (!res.ok) return {};
+      const json = await res.json();
+      return json.pins ?? {};
+    },
+  });
+}
 
 export function StaffManager() {
   const { data: janitors, isLoading } = useJanitors();
   const { data: tasks = [] } = useTasks();
+  const { data: pins = {} } = usePins();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [form, setForm] = React.useState<AddState>(BLANK);
   const [saving, setSaving] = React.useState(false);
-  const [pwTarget, setPwTarget] = React.useState<{ id: string; name: string } | null>(null);
+  const [pinTarget, setPinTarget] = React.useState<{ id: string; name: string } | null>(null);
 
   function set<K extends keyof AddState>(k: K, v: AddState[K]) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -38,9 +52,15 @@ export function StaffManager() {
   const activeCount = (id: string) =>
     tasks.filter((t) => t.assignee_id === id && t.status !== 'done').length;
 
+  const refreshStaff = async () => {
+    await qc.invalidateQueries({ queryKey: qk.janitors });
+    await qc.invalidateQueries({ queryKey: qk.profiles });
+    await qc.invalidateQueries({ queryKey: ['staff-pins'] });
+  };
+
   async function add() {
-    if (!form.full_name.trim() || !form.username.trim() || !form.password) {
-      toast.error('กรุณากรอกชื่อ ชื่อผู้ใช้ และรหัสผ่าน');
+    if (!form.full_name.trim() || !form.username.trim() || form.pin.length !== 4) {
+      toast.error('กรุณากรอกชื่อ ชื่อผู้ใช้ และ PIN 4 หลัก');
       return;
     }
     setSaving(true);
@@ -52,8 +72,7 @@ export function StaffManager() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'เพิ่มไม่สำเร็จ');
-      await qc.invalidateQueries({ queryKey: qk.janitors });
-      await qc.invalidateQueries({ queryKey: qk.profiles });
+      await refreshStaff();
       toast.success('เพิ่มนักการภารโรงแล้ว');
       setForm(BLANK);
     } catch (e) {
@@ -79,7 +98,7 @@ export function StaffManager() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'ทำรายการไม่สำเร็จ');
-      await qc.invalidateQueries({ queryKey: qk.janitors });
+      await refreshStaff();
       toast.success('ปิดการใช้งานแล้ว');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'ทำรายการไม่สำเร็จ');
@@ -108,12 +127,18 @@ export function StaffManager() {
                 </div>
               </div>
               <div className="flex-none text-center">
+                <div className="font-mono text-[15px] font-bold tracking-widest text-brand">
+                  {pins[j.id] ?? '••••'}
+                </div>
+                <div className="text-[10px] text-muted-faint">PIN</div>
+              </div>
+              <div className="flex-none text-center">
                 <div className="text-[15px] font-bold text-status-progress">{activeCount(j.id)}</div>
                 <div className="text-[10px] text-muted-faint">งานค้าง</div>
               </div>
               <button
-                onClick={() => setPwTarget({ id: j.id, name: j.full_name })}
-                aria-label={`เปลี่ยนรหัสผ่าน ${j.full_name}`}
+                onClick={() => setPinTarget({ id: j.id, name: j.full_name })}
+                aria-label={`รีเซ็ต PIN ${j.full_name}`}
                 className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[9px] border border-line bg-canvas text-[#5A6772] hover:bg-[#eef1ec]"
               >
                 <KeyRound className="h-4 w-4" aria-hidden />
@@ -135,11 +160,17 @@ export function StaffManager() {
         <Field label="ชื่อ–นามสกุล" className="mb-3">
           <Input value={form.full_name} onChange={(e) => set('full_name', e.target.value)} placeholder="เช่น นายสมศักดิ์ รักงาน" />
         </Field>
-        <Field label="ชื่อผู้ใช้ (สำหรับเข้าระบบ)" className="mb-3">
+        <Field label="ชื่อผู้ใช้ (ภายในระบบ)" className="mb-3">
           <Input value={form.username} onChange={(e) => set('username', e.target.value)} placeholder="เช่น somsak" autoComplete="off" />
         </Field>
-        <Field label="รหัสผ่านเริ่มต้น" className="mb-3">
-          <Input value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="อย่างน้อย 6 ตัวอักษร" autoComplete="new-password" />
+        <Field label="PIN 4 หลัก (ใช้เข้าสู่ระบบ)" className="mb-3">
+          <Input
+            value={form.pin}
+            onChange={(e) => set('pin', digits(e.target.value))}
+            placeholder="เช่น 1234"
+            inputMode="numeric"
+            className="font-mono tracking-[0.4em]"
+          />
         </Field>
         <Field label="เขต / หน้าที่" className="mb-3">
           <Input value={form.zone} onChange={(e) => set('zone', e.target.value)} placeholder="เช่น เขตอาคาร 4" />
@@ -153,28 +184,30 @@ export function StaffManager() {
         </Button>
       </Card>
 
-      <PasswordDialog target={pwTarget} onClose={() => setPwTarget(null)} />
+      <PinDialog target={pinTarget} onClose={() => setPinTarget(null)} onDone={refreshStaff} />
     </div>
   );
 }
 
-function PasswordDialog({
+function PinDialog({
   target,
   onClose,
+  onDone,
 }: {
   target: { id: string; name: string } | null;
   onClose: () => void;
+  onDone: () => Promise<void>;
 }) {
-  const [pw, setPw] = React.useState('');
+  const [pin, setPin] = React.useState('');
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
-    if (target) setPw('');
+    if (target) setPin('');
   }, [target]);
 
   async function save() {
-    if (pw.length < 6) {
-      toast.error('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+    if (pin.length !== 4) {
+      toast.error('PIN ต้องเป็นตัวเลข 4 หลัก');
       return;
     }
     if (!target) return;
@@ -183,14 +216,15 @@ function PasswordDialog({
       const res = await fetch('/api/staff', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: target.id, password: pw }),
+        body: JSON.stringify({ id: target.id, pin }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
-      toast.success('เปลี่ยนรหัสผ่านเรียบร้อย');
+      if (!res.ok) throw new Error(json.error || 'รีเซ็ต PIN ไม่สำเร็จ');
+      await onDone();
+      toast.success('รีเซ็ต PIN เรียบร้อย');
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
+      toast.error(e instanceof Error ? e.message : 'รีเซ็ต PIN ไม่สำเร็จ');
     } finally {
       setSaving(false);
     }
@@ -201,17 +235,18 @@ function PasswordDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-[18px] border border-line bg-card p-6 shadow-pop focus:outline-none">
-          <Dialog.Title className="text-[16px] font-bold">เปลี่ยนรหัสผ่าน</Dialog.Title>
+          <Dialog.Title className="text-[16px] font-bold">รีเซ็ต PIN</Dialog.Title>
           <Dialog.Description className="mt-1 text-[13px] text-muted">
-            ตั้งรหัสผ่านใหม่ให้ {target?.name}
+            ตั้ง PIN 4 หลักใหม่ให้ {target?.name}
           </Dialog.Description>
           <div className="mt-4">
             <Input
-              type="password"
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-              placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)"
-              autoComplete="new-password"
+              value={pin}
+              onChange={(e) => setPin(digits(e.target.value))}
+              placeholder="PIN 4 หลัก"
+              inputMode="numeric"
+              className="text-center font-mono text-lg tracking-[0.5em]"
+              autoFocus
             />
           </div>
           <div className="mt-6 flex justify-end gap-2">
@@ -219,7 +254,7 @@ function PasswordDialog({
               ยกเลิก
             </Button>
             <Button size="sm" loading={saving} onClick={save}>
-              บันทึกรหัสผ่าน
+              บันทึก PIN
             </Button>
           </div>
         </Dialog.Content>

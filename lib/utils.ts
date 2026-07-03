@@ -91,6 +91,13 @@ export function pct(n: number, total: number): number {
   return total ? Math.round((n / total) * 100) : 0;
 }
 
+/** "HH:MM:SS" -> "HH:MM" (drops seconds). Returns '' for empty. */
+export function hhmm(t: string | null | undefined): string {
+  if (!t) return '';
+  const m = /^(\d{1,2}):(\d{2})/.exec(t);
+  return m ? `${m[1].padStart(2, '0')}:${m[2]}` : t;
+}
+
 /** '2026-06-30' -> 'วันที่ 30 เดือน มิถุนายน พ.ศ. 2569' for the official report header. */
 export function fmtOfficialDate(iso: string | null | undefined): string {
   const d = iso ? new Date(iso) : new Date();

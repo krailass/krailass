@@ -26,6 +26,7 @@ export interface PushPayload {
   body?: string;
   taskId?: string | null;
   url?: string;
+  urgent?: boolean;
 }
 
 /** Send a Web Push to each subscription. Returns endpoints that are gone (410/404). */

@@ -44,7 +44,7 @@ self.addEventListener('fetch', (event) => {
 
 // Web Push -> system notification.
 self.addEventListener('push', (event) => {
-  let data = { title: 'แจ้งเตือน', body: '', url: '/', taskId: undefined };
+  let data = { title: 'แจ้งเตือน', body: '', url: '/', taskId: undefined, urgent: false };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch {
@@ -58,6 +58,8 @@ self.addEventListener('push', (event) => {
       lang: 'th',
       data: { url: data.url || '/' },
       tag: data.taskId || undefined,
+      requireInteraction: !!data.urgent,
+      vibrate: data.urgent ? [200, 100, 200, 100, 200] : undefined,
     }),
   );
 });

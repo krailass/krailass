@@ -93,11 +93,13 @@ export async function POST(req: NextRequest) {
     .select('endpoint,p256dh,auth')
     .in('user_id', userIds);
 
+  const isUrgent = payload.type === 'urgent';
   const dead = await sendPush((subs ?? []) as PushSub[], {
     title,
     body: body ?? undefined,
     taskId: payload.taskId ?? null,
-    url: '/',
+    url: isUrgent ? '/janitor/board' : '/',
+    urgent: isUrgent,
   });
 
   if (dead.length) {

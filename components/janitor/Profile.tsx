@@ -11,11 +11,13 @@ import { Field, Input } from '@/components/ui/form';
 import { initial } from '@/lib/utils';
 import { LOGIN_EMAIL_DOMAIN } from '@/lib/constants';
 
+const digits = (v: string) => v.replace(/\D/g, '').slice(0, 4);
+
 export function Profile() {
   const { profile } = useProfile();
   const [email, setEmail] = React.useState('');
-  const [pw, setPw] = React.useState('');
-  const [pw2, setPw2] = React.useState('');
+  const [pin, setPin] = React.useState('');
+  const [pin2, setPin2] = React.useState('');
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
@@ -26,25 +28,32 @@ export function Profile() {
 
   const username = email.endsWith('@' + LOGIN_EMAIL_DOMAIN) ? email.split('@')[0] : email;
 
-  async function changePassword() {
-    if (pw.length < 6) {
-      toast.error('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+  async function changePin() {
+    if (pin.length !== 4) {
+      toast.error('PIN ต้องเป็นตัวเลข 4 หลัก');
       return;
     }
-    if (pw !== pw2) {
-      toast.error('รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+    if (pin !== pin2) {
+      toast.error('PIN ทั้งสองช่องไม่ตรงกัน');
       return;
     }
     setSaving(true);
-    const { error } = await getSupabaseBrowser().auth.updateUser({ password: pw });
-    setSaving(false);
-    if (error) {
-      toast.error('เปลี่ยนรหัสผ่านไม่สำเร็จ: ' + error.message);
-      return;
+    try {
+      const res = await fetch('/api/pin', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'เปลี่ยน PIN ไม่สำเร็จ');
+      toast.success('เปลี่ยน PIN เรียบร้อย');
+      setPin('');
+      setPin2('');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'เปลี่ยน PIN ไม่สำเร็จ');
+    } finally {
+      setSaving(false);
     }
-    toast.success('เปลี่ยนรหัสผ่านเรียบร้อย');
-    setPw('');
-    setPw2('');
   }
 
   const rows = [
@@ -83,29 +92,29 @@ export function Profile() {
       <Card className="h-fit p-6">
         <div className="mb-1 flex items-center gap-2 text-[15px] font-bold">
           <KeyRound className="h-[18px] w-[18px] text-brand" aria-hidden />
-          เปลี่ยนรหัสผ่าน
+          เปลี่ยน PIN
         </div>
-        <div className="mb-4 text-[12.5px] text-muted-soft">ตั้งรหัสผ่านใหม่สำหรับเข้าใช้งานระบบ</div>
-        <Field label="รหัสผ่านใหม่" className="mb-3">
+        <div className="mb-4 text-[12.5px] text-muted-soft">ตั้ง PIN 4 หลักใหม่สำหรับเข้าใช้งานระบบ</div>
+        <Field label="PIN ใหม่ (4 หลัก)" className="mb-3">
           <Input
-            type="password"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            placeholder="อย่างน้อย 6 ตัวอักษร"
-            autoComplete="new-password"
+            value={pin}
+            onChange={(e) => setPin(digits(e.target.value))}
+            placeholder="เช่น 1234"
+            inputMode="numeric"
+            className="text-center font-mono text-lg tracking-[0.5em]"
           />
         </Field>
-        <Field label="ยืนยันรหัสผ่านใหม่" className="mb-5">
+        <Field label="ยืนยัน PIN ใหม่" className="mb-5">
           <Input
-            type="password"
-            value={pw2}
-            onChange={(e) => setPw2(e.target.value)}
-            placeholder="พิมพ์รหัสผ่านอีกครั้ง"
-            autoComplete="new-password"
+            value={pin2}
+            onChange={(e) => setPin2(digits(e.target.value))}
+            placeholder="พิมพ์ PIN อีกครั้ง"
+            inputMode="numeric"
+            className="text-center font-mono text-lg tracking-[0.5em]"
           />
         </Field>
-        <Button block loading={saving} onClick={changePassword}>
-          บันทึกรหัสผ่านใหม่
+        <Button block loading={saving} onClick={changePin}>
+          บันทึก PIN ใหม่
         </Button>
       </Card>
     </div>

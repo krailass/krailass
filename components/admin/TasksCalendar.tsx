@@ -6,16 +6,27 @@ import { ChevronLeft, ChevronRight, Plus, MapPin } from 'lucide-react';
 import type { DecoratedTask } from '@/lib/task-view';
 import { Card } from '@/components/ui/primitives';
 import { StatusPill, CategoryBadge, UrgentBadge } from '@/components/ui/badges';
+import { useCategories } from '@/hooks/useAppData';
 import { categoryColor, givenName, toISODate, periodRange } from '@/lib/utils';
 
 const WEEKDAYS = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+// Urgent tasks are shown dark red regardless of category.
+const URGENT = { bg: '#FEE2E2', text: '#B91C1C' };
+const colorOf = (t: DecoratedTask) => (t.isUrgent ? URGENT : categoryColor(t.category));
 
 function taskDate(t: DecoratedTask): string | null {
   return t.assigned_date || t.due_date;
 }
 
-export function TasksCalendar({ tasks }: { tasks: DecoratedTask[] }) {
+export function TasksCalendar({
+  tasks,
+  onSelectTask,
+}: {
+  tasks: DecoratedTask[];
+  onSelectTask?: (t: DecoratedTask) => void;
+}) {
   const router = useRouter();
+  const { data: categories = [] } = useCategories();
   const today = React.useMemo(() => toISODate(new Date()), []);
   const [monthRef, setMonthRef] = React.useState(() => new Date());
   const [selected, setSelected] = React.useState(today);
@@ -113,7 +124,7 @@ export function TasksCalendar({ tasks }: { tasks: DecoratedTask[] }) {
                 </div>
                 <div className="flex flex-col gap-0.5">
                   {dayTasks.slice(0, 3).map((t) => {
-                    const c = categoryColor(t.category);
+                    const c = colorOf(t);
                     return (
                       <div
                         key={t.id}
@@ -136,6 +147,20 @@ export function TasksCalendar({ tasks }: { tasks: DecoratedTask[] }) {
               </button>
             );
           })}
+        </div>
+
+        {/* Color legend */}
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-line pt-3">
+          {categories.map((c) => (
+            <span key={c.id} className="flex items-center gap-1.5 text-[11px] text-[#4A574F]">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: c.color_text }} />
+              {c.name}
+            </span>
+          ))}
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#4A574F]">
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: URGENT.text }} />
+            เร่งด่วน
+          </span>
         </div>
       </Card>
 
@@ -166,8 +191,15 @@ export function TasksCalendar({ tasks }: { tasks: DecoratedTask[] }) {
         ) : (
           <div className="flex flex-col gap-2.5">
             {selectedTasks.map((t) => (
-              <div key={t.id} className="flex items-center gap-3 rounded-xl border border-[#EEF1EC] px-3 py-2.5">
-                <span className="h-9 w-1.5 flex-none rounded-full" style={{ background: t.catText }} />
+              <button
+                key={t.id}
+                onClick={() => onSelectTask?.(t)}
+                className="flex w-full items-center gap-3 rounded-xl border border-[#EEF1EC] px-3 py-2.5 text-left hover:bg-canvas"
+              >
+                <span
+                  className="h-9 w-1.5 flex-none rounded-full"
+                  style={{ background: t.isUrgent ? URGENT.text : t.catText }}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[13.5px] font-semibold">{t.title}</span>
@@ -181,7 +213,7 @@ export function TasksCalendar({ tasks }: { tasks: DecoratedTask[] }) {
                   </div>
                 </div>
                 <StatusPill status={t.status} />
-              </div>
+              </button>
             ))}
           </div>
         )}

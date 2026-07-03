@@ -25,29 +25,10 @@ export function registerThaiFonts(): void {
     ],
   });
 
-  Font.registerHyphenationCallback((word) => breakThai(word));
+  // Treat each whitespace-delimited token as an unbreakable unit (no mid-word
+  // hyphenation). Combined with the trailing-space buffer applied to every
+  // Text line (see components/pdf/documents.tsx), this is the proven fix for
+  // @react-pdf's Thai last-glyph clipping — matches KPServiceProV2's approach.
+  Font.registerHyphenationCallback((word) => [word]);
   registered = true;
-}
-
-const THAI_RE = /[฀-๿]/;
-
-function breakThai(word: string): string[] {
-  // Latin/number words: leave intact (no mid-word hyphenation).
-  if (!THAI_RE.test(word)) return [word];
-
-  // Prefer dictionary word segmentation when available.
-  const Seg = (Intl as unknown as { Segmenter?: typeof Intl.Segmenter }).Segmenter;
-  if (Seg) {
-    try {
-      const seg = new Seg('th', { granularity: 'word' });
-      const parts = Array.from(seg.segment(word), (s) => s.segment).filter(Boolean);
-      if (parts.length > 1) return parts;
-    } catch {
-      // fall through to character split
-    }
-  }
-
-  // Fallback: allow a break after every Thai character (keeps combining marks
-  // attached to their base is imperfect, but prevents last-glyph clipping).
-  return word.split('');
 }

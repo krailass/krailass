@@ -129,12 +129,13 @@ export function AssignForm() {
         userId,
       );
       await qc.invalidateQueries({ queryKey: qk.tasks });
+      const isUrgent = form.priority === 'urgent';
       notify({
         target: { userId: form.assignee_id },
-        title: 'ได้รับมอบหมายงานใหม่',
+        title: isUrgent ? 'งานเร่งด่วน! ได้รับมอบหมายงานใหม่' : 'ได้รับมอบหมายงานใหม่',
         body: form.title.trim(),
         taskId: task.id,
-        type: 'assigned',
+        type: isUrgent ? 'urgent' : 'assigned',
       });
       toast.success('มอบหมายงานใหม่เรียบร้อย');
       setForm((f) => ({

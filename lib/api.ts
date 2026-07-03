@@ -15,6 +15,10 @@ export type SB = SupabaseClient<Database>;
 
 const TASK_SELECT = '*, assignee:profiles!tasks_assignee_id_fkey(id,full_name,zone)';
 
+// Never select the pin column from the client (revoked from authenticated).
+const PROFILE_COLS =
+  'id,full_name,prefix,role,zone,phone,avatar_url,is_active,created_at,updated_at';
+
 // ---------------- Tasks ----------------
 export async function fetchTasks(sb: SB): Promise<TaskWithAssignee[]> {
   const { data, error } = await sb
@@ -103,7 +107,7 @@ export async function sendBackTask(sb: SB, id: string): Promise<void> {
 export async function fetchProfiles(sb: SB): Promise<ProfileRow[]> {
   const { data, error } = await sb
     .from('profiles')
-    .select('*')
+    .select(PROFILE_COLS)
     .order('created_at', { ascending: true });
   if (error) throw error;
   return (data ?? []) as ProfileRow[];
@@ -112,7 +116,7 @@ export async function fetchProfiles(sb: SB): Promise<ProfileRow[]> {
 export async function fetchJanitors(sb: SB): Promise<ProfileRow[]> {
   const { data, error } = await sb
     .from('profiles')
-    .select('*')
+    .select(PROFILE_COLS)
     .eq('role', 'janitor')
     .eq('is_active', true)
     .order('full_name', { ascending: true });

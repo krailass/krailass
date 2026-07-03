@@ -18,7 +18,13 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'done', label: 'ดำเนินการแล้ว' },
 ];
 
-export function TasksTable({ tasks }: { tasks: DecoratedTask[] }) {
+export function TasksTable({
+  tasks,
+  onSelectTask,
+}: {
+  tasks: DecoratedTask[];
+  onSelectTask?: (t: DecoratedTask) => void;
+}) {
   const [filter, setFilter] = React.useState<Filter>('all');
   const rows = tasks.filter((t) => filter === 'all' || t.status === filter);
 
@@ -37,9 +43,10 @@ export function TasksTable({ tasks }: { tasks: DecoratedTask[] }) {
         {rows.length === 0 && <EmptyState title="ไม่พบงานในเงื่อนไขนี้" />}
 
         {rows.map((t) => (
-          <div
+          <button
             key={t.id}
-            className="grid grid-cols-1 items-center gap-2 border-b border-[#F1F4EF] px-4 py-3.5 last:border-b-0 md:grid-cols-[2.4fr_1.3fr_1.3fr_1.2fr] md:gap-3 md:px-[18px]"
+            onClick={() => onSelectTask?.(t)}
+            className="grid w-full grid-cols-1 items-center gap-2 border-b border-[#F1F4EF] px-4 py-3.5 text-left last:border-b-0 hover:bg-canvas md:grid-cols-[2.4fr_1.3fr_1.3fr_1.2fr] md:gap-3 md:px-[18px]"
           >
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -66,7 +73,7 @@ export function TasksTable({ tasks }: { tasks: DecoratedTask[] }) {
             <div>
               <StatusPill status={t.status} />
             </div>
-          </div>
+          </button>
         ))}
       </Card>
     </div>
