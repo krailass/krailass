@@ -29,7 +29,7 @@ export function Board() {
   const qc = useQueryClient();
   const { data: tasks, isLoading, error } = useTasks();
   const [scope, setScope] = React.useState<Scope>('mine');
-  const [view, setView] = React.useState<View>('board');
+  const [view, setView] = React.useState<View>('calendar');
   const [detail, setDetail] = React.useState<DecoratedTask | null>(null);
 
   if (isLoading) return <Loading />;
