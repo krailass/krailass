@@ -38,10 +38,12 @@ const s = StyleSheet.create({
   img: { width: 116, height: 84, objectFit: 'cover', borderRadius: 3, border: '1 solid #ddd' },
   imgEmpty: { fontSize: 10, color: '#888', marginTop: 2 },
   checkbox: { width: 13, height: 13, border: '1 solid #333', textAlign: 'center', fontSize: 10, marginRight: 5 },
-  signGrid: { flexDirection: 'row', gap: 12, marginTop: 18, textAlign: 'center' },
-  signCol: { flex: 1, textAlign: 'center', fontSize: 10.5 },
-  comment: { fontSize: 10.5, marginTop: 10 },
-  signRight: { textAlign: 'right', marginTop: 5, fontSize: 10.5 },
+  signGrid: { flexDirection: 'row', gap: 16, marginTop: 18 },
+  signCol: { flex: 1, fontSize: 10.5 },
+  signName: { textAlign: 'center', fontSize: 10.5 },
+  approveTitle: { fontSize: 10.5, fontWeight: 700, marginTop: 12 },
+  dots: { marginTop: 9, height: 9, borderBottomWidth: 1, borderBottomColor: '#666', borderStyle: 'dashed' },
+  approveSign: { textAlign: 'center', marginTop: 8, fontSize: 10.5 },
   // summary
   tiles: { flexDirection: 'row', gap: 5, marginVertical: 10 },
   tile: { flex: 1, border: '1 solid #e2e2e2', borderRadius: 5, padding: 5, textAlign: 'center' },
@@ -149,30 +151,32 @@ export function TaskReportDocument(p: TaskReportDocProps) {
         <ImgGrid imgs={p.afterImgs} empty="— ไม่มีรูปภาพ —" />
 
         <View style={s.signGrid}>
+          {/* Left column: preparer + general-affairs head */}
           <View style={s.signCol}>
-            <T>ลงชื่อ ...............................................</T>
-            <T>({p.signatories.preparer})</T>
-            <T>ผู้จัดทำข้อมูล</T>
+            <T>ลงชื่อ ................................ผู้จัดทำข้อมูล</T>
+            <T style={s.signName}>({p.signatories.preparer})</T>
+
+            <T style={s.approveTitle}>ความเห็นของหัวหน้ากลุ่มบริหารทั่วไป</T>
+            <View style={s.dots} />
+            <T style={s.approveSign}>ลงชื่อ ............................. หัวหน้ากลุ่มบริหารทั่วไป</T>
+            <T style={s.signName}>({p.signatories.generalAffairsHead})</T>
           </View>
+
+          {/* Right column: operator + deputy + director */}
           <View style={s.signCol}>
-            <T>ลงชื่อ ...............................................</T>
-            <T>({p.signatories.operator})</T>
-            <T>ผู้ควบคุมและดำเนินงาน</T>
+            <T>ลงชื่อ ..........................ผู้ควบคุมและดำเนินงาน</T>
+            <T style={s.signName}>({p.signatories.operator})</T>
+
+            <T style={s.approveTitle}>ความเห็นของรองผู้อำนวยการโรงเรียน</T>
+            <View style={s.dots} />
+            <T style={s.approveSign}>ลงชื่อ ............................. รองผู้อำนวยการโรงเรียน</T>
+            <T style={s.signName}>({p.signatories.deputyDirector})</T>
+
+            <T style={s.approveTitle}>ความเห็นของผู้อำนวยการโรงเรียน</T>
+            <View style={s.dots} />
+            <T style={s.approveSign}>ลงชื่อ ............................. ผู้อำนวยการโรงเรียน</T>
+            <T style={s.signName}>({p.signatories.director})</T>
           </View>
-        </View>
-
-        <View style={{ marginTop: 12 }}>
-          <T style={s.comment}>ความเห็นของหัวหน้ากลุ่มบริหารทั่วไป ..........................................................</T>
-          <T style={s.signRight}>ลงชื่อ ............................. หัวหน้ากลุ่มบริหารทั่วไป</T>
-          <T style={[s.signRight, { marginTop: 0 }]}>({p.signatories.generalAffairsHead})</T>
-
-          <T style={s.comment}>ความเห็นของรองผู้อำนวยการโรงเรียน ..........................................................</T>
-          <T style={s.signRight}>ลงชื่อ ............................. รองผู้อำนวยการโรงเรียน</T>
-          <T style={[s.signRight, { marginTop: 0 }]}>({p.signatories.deputyDirector})</T>
-
-          <T style={s.comment}>ความเห็นของผู้อำนวยการโรงเรียน ..........................................................</T>
-          <T style={s.signRight}>ลงชื่อ ............................. ผู้อำนวยการโรงเรียน</T>
-          <T style={[s.signRight, { marginTop: 0 }]}>({p.signatories.director})</T>
         </View>
       </Page>
     </Document>
