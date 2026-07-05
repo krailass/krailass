@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { MapPin, Play, ClipboardCheck } from 'lucide-react';
+import { MapPin, Play, ClipboardCheck, KanbanSquare, CalendarDays } from 'lucide-react';
 import type { TaskStatus } from '@/lib/database.types';
 import { getSupabaseBrowser } from '@/lib/supabase/client';
 import { advanceTask, type SB } from '@/lib/api';
@@ -14,11 +14,14 @@ import { useProfile } from '@/components/layout/ProfileContext';
 import { Card, Button } from '@/components/ui/primitives';
 import { CategoryBadge, UrgentBadge, ApprovalBadge } from '@/components/ui/badges';
 import { Loading, ErrorBox } from '@/components/ui/states';
+import { TasksCalendar } from '@/components/admin/TasksCalendar';
+import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog';
 import { STATUS_ORDER, STATUS_META } from '@/lib/constants';
 import { fmtThaiDate } from '@/lib/utils';
 import type { DecoratedTask } from '@/lib/task-view';
 
 type Scope = 'mine' | 'all';
+type View = 'board' | 'calendar';
 
 export function Board() {
   const { userId } = useProfile();
@@ -26,6 +29,8 @@ export function Board() {
   const qc = useQueryClient();
   const { data: tasks, isLoading, error } = useTasks();
   const [scope, setScope] = React.useState<Scope>('mine');
+  const [view, setView] = React.useState<View>('board');
+  const [detail, setDetail] = React.useState<DecoratedTask | null>(null);
 
   if (isLoading) return <Loading />;
   if (error) return <ErrorBox error={error} />;
@@ -46,21 +51,47 @@ export function Board() {
 
   return (
     <div className="animate-fadeUp">
-      <div className="mb-4 inline-flex rounded-full border border-line bg-card p-1" data-noprint>
-        {(['mine', 'all'] as Scope[]).map((s) => (
+      <div className="mb-4 flex flex-wrap items-center gap-2" data-noprint>
+        <div className="inline-flex rounded-full border border-line bg-card p-1">
+          {(['mine', 'all'] as Scope[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => setScope(s)}
+              className={`rounded-full px-4 py-1.5 text-[13px] font-semibold transition-colors ${
+                scope === s ? 'bg-brand text-white' : 'text-[#5A6772]'
+              }`}
+            >
+              {s === 'mine' ? 'งานของฉัน' : 'งานทั้งหมด'}
+            </button>
+          ))}
+        </div>
+
+        <div className="inline-flex rounded-[11px] border border-line bg-card p-1 sm:ml-auto">
           <button
-            key={s}
-            onClick={() => setScope(s)}
-            className={`rounded-full px-4 py-1.5 text-[13px] font-semibold transition-colors ${
-              scope === s ? 'bg-brand text-white' : 'text-[#5A6772]'
+            onClick={() => setView('board')}
+            className={`inline-flex items-center gap-1.5 rounded-[8px] px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+              view === 'board' ? 'bg-brand text-white' : 'text-[#5A6772]'
             }`}
           >
-            {s === 'mine' ? 'งานของฉัน' : 'งานทั้งหมด'}
+            <KanbanSquare className="h-4 w-4" aria-hidden />
+            บอร์ด
           </button>
-        ))}
+          <button
+            onClick={() => setView('calendar')}
+            className={`inline-flex items-center gap-1.5 rounded-[8px] px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+              view === 'calendar' ? 'bg-brand text-white' : 'text-[#5A6772]'
+            }`}
+          >
+            <CalendarDays className="h-4 w-4" aria-hidden />
+            ปฏิทิน
+          </button>
+        </div>
       </div>
 
-      <div className="grid items-start gap-3.5 md:grid-cols-3">
+      {view === 'calendar' ? (
+        <TasksCalendar tasks={visible} onSelectTask={setDetail} canAssign={false} labelBy="title" />
+      ) : (
+        <div className="grid items-start gap-3.5 md:grid-cols-3">
         {STATUS_ORDER.map((status) => {
           const items = visible.filter((t) => t.status === status);
           return (
@@ -88,7 +119,10 @@ export function Board() {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
+
+      <TaskDetailDialog task={detail} onClose={() => setDetail(null)} />
     </div>
   );
 }

@@ -21,9 +21,15 @@ function taskDate(t: DecoratedTask): string | null {
 export function TasksCalendar({
   tasks,
   onSelectTask,
+  canAssign = true,
+  labelBy = 'assignee',
 }: {
   tasks: DecoratedTask[];
   onSelectTask?: (t: DecoratedTask) => void;
+  /** Show the admin "assign work on this day" actions. Off for janitors. */
+  canAssign?: boolean;
+  /** What each calendar-cell pill reads: the assignee's given name, or the task title. */
+  labelBy?: 'assignee' | 'title';
 }) {
   const router = useRouter();
   const { data: categories = [] } = useCategories();
@@ -133,7 +139,7 @@ export function TasksCalendar({
                       >
                         <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: c.text }} />
                         <span className="truncate text-[9px] font-medium" style={{ color: c.text }}>
-                          {givenName(t.assigneeName)}
+                          {labelBy === 'title' ? t.title : givenName(t.assigneeName)}
                         </span>
                       </div>
                     );
@@ -171,23 +177,31 @@ export function TasksCalendar({
             งานวันที่ {new Date(selected).getDate()} {periodRange('month', new Date(selected)).replace('เดือน', '')}
             <span className="ml-2 text-[12px] font-medium text-muted-soft">({selectedTasks.length} งาน)</span>
           </div>
-          <button
-            onClick={() => router.push(`/admin/assign?date=${selected}`)}
-            className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand px-3 py-2 text-[12.5px] font-semibold text-white hover:bg-brand-dark"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            มอบหมายงานในวันนี้
-          </button>
+          {canAssign && (
+            <button
+              onClick={() => router.push(`/admin/assign?date=${selected}`)}
+              className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand px-3 py-2 text-[12.5px] font-semibold text-white hover:bg-brand-dark"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              มอบหมายงานในวันนี้
+            </button>
+          )}
         </div>
 
         {selectedTasks.length === 0 ? (
-          <button
-            onClick={() => router.push(`/admin/assign?date=${selected}`)}
-            className="flex w-full flex-col items-center gap-1 rounded-xl border border-dashed border-line bg-[#F8FAF7] py-8 text-muted-faint hover:bg-canvas"
-          >
-            <Plus className="h-5 w-5" aria-hidden />
-            <span className="text-[12.5px] font-medium">ยังไม่มีงานในวันนี้ — แตะเพื่อมอบหมายงาน</span>
-          </button>
+          canAssign ? (
+            <button
+              onClick={() => router.push(`/admin/assign?date=${selected}`)}
+              className="flex w-full flex-col items-center gap-1 rounded-xl border border-dashed border-line bg-[#F8FAF7] py-8 text-muted-faint hover:bg-canvas"
+            >
+              <Plus className="h-5 w-5" aria-hidden />
+              <span className="text-[12.5px] font-medium">ยังไม่มีงานในวันนี้ — แตะเพื่อมอบหมายงาน</span>
+            </button>
+          ) : (
+            <div className="flex w-full flex-col items-center gap-1 rounded-xl border border-dashed border-line bg-[#F8FAF7] py-8 text-muted-faint">
+              <span className="text-[12.5px] font-medium">ยังไม่มีงานในวันนี้</span>
+            </div>
+          )
         ) : (
           <div className="flex flex-col gap-2.5">
             {selectedTasks.map((t) => (
