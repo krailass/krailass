@@ -4,7 +4,7 @@ import * as React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Trash2, UserPlus, KeyRound } from 'lucide-react';
+import { Trash2, UserPlus, KeyRound, Pencil, X } from 'lucide-react';
 import { useJanitors, useTasks, qk } from '@/hooks/useAppData';
 import { useConfirm } from '@/components/ui/confirm';
 import { Card, Avatar, Button } from '@/components/ui/primitives';
@@ -43,6 +43,7 @@ export function StaffManager() {
   const confirm = useConfirm();
   const [form, setForm] = React.useState<AddState>(BLANK);
   const [saving, setSaving] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
   const [pinTarget, setPinTarget] = React.useState<{ id: string; name: string } | null>(null);
 
   function set<K extends keyof AddState>(k: K, v: AddState[K]) {
@@ -77,6 +78,58 @@ export function StaffManager() {
       setForm(BLANK);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'เพิ่มไม่สำเร็จ');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function startEdit(j: { id: string; full_name: string; zone: string | null; phone: string | null }) {
+    setEditingId(j.id);
+    setForm({
+      full_name: j.full_name ?? '',
+      username: '',
+      pin: pins[j.id] ?? '',
+      zone: j.zone ?? '',
+      phone: j.phone ?? '',
+    });
+    document.getElementById('staff-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(BLANK);
+  }
+
+  async function saveEdit() {
+    if (!editingId) return;
+    if (!form.full_name.trim()) {
+      toast.error('กรุณากรอกชื่อ–นามสกุล');
+      return;
+    }
+    if (form.pin && form.pin.length !== 4) {
+      toast.error('PIN ต้องเป็นตัวเลข 4 หลัก');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/staff', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: editingId,
+          full_name: form.full_name,
+          zone: form.zone,
+          phone: form.phone,
+          ...(form.pin.length === 4 ? { pin: form.pin } : {}),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'บันทึกไม่สำเร็จ');
+      await refreshStaff();
+      toast.success('บันทึกการแก้ไขแล้ว');
+      cancelEdit();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'บันทึกไม่สำเร็จ');
     } finally {
       setSaving(false);
     }
@@ -117,7 +170,9 @@ export function StaffManager() {
           (janitors ?? []).map((j) => (
             <div
               key={j.id}
-              className="flex items-center gap-3 border-b border-[#F1F4EF] px-[18px] py-3.5 last:border-b-0"
+              className={`flex items-center gap-3 border-b border-[#F1F4EF] px-[18px] py-3.5 last:border-b-0 ${
+                editingId === j.id ? 'bg-[#EEF5F3]' : ''
+              }`}
             >
               <Avatar name={j.full_name} initial={initial(j.full_name)} size={42} />
               <div className="min-w-0 flex-1">
@@ -137,6 +192,13 @@ export function StaffManager() {
                 <div className="text-[10px] text-muted-faint">งานค้าง</div>
               </div>
               <button
+                onClick={() => startEdit(j)}
+                aria-label={`แก้ไขข้อมูล ${j.full_name}`}
+                className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[9px] border border-line bg-canvas text-brand hover:bg-[#eef1ec]"
+              >
+                <Pencil className="h-4 w-4" aria-hidden />
+              </button>
+              <button
                 onClick={() => setPinTarget({ id: j.id, name: j.full_name })}
                 aria-label={`รีเซ็ต PIN ${j.full_name}`}
                 className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[9px] border border-line bg-canvas text-[#5A6772] hover:bg-[#eef1ec]"
@@ -155,15 +217,19 @@ export function StaffManager() {
         )}
       </Card>
 
-      <Card className="h-fit p-5">
-        <div className="mb-4 text-[15px] font-bold">เพิ่มนักการภารโรง</div>
+      <Card id="staff-form" className="h-fit p-5">
+        <div className="mb-4 text-[15px] font-bold">
+          {editingId ? 'แก้ไขข้อมูลนักการภารโรง' : 'เพิ่มนักการภารโรง'}
+        </div>
         <Field label="ชื่อ–นามสกุล" className="mb-3">
           <Input value={form.full_name} onChange={(e) => set('full_name', e.target.value)} placeholder="เช่น นายสมศักดิ์ รักงาน" />
         </Field>
-        <Field label="ชื่อผู้ใช้ (ภายในระบบ)" className="mb-3">
-          <Input value={form.username} onChange={(e) => set('username', e.target.value)} placeholder="เช่น somsak" autoComplete="off" />
-        </Field>
-        <Field label="PIN 4 หลัก (ใช้เข้าสู่ระบบ)" className="mb-3">
+        {!editingId && (
+          <Field label="ชื่อผู้ใช้ (ภายในระบบ)" className="mb-3">
+            <Input value={form.username} onChange={(e) => set('username', e.target.value)} placeholder="เช่น somsak" autoComplete="off" />
+          </Field>
+        )}
+        <Field label={editingId ? 'PIN 4 หลัก (แก้ไขเพื่อเปลี่ยน)' : 'PIN 4 หลัก (ใช้เข้าสู่ระบบ)'} className="mb-3">
           <Input
             value={form.pin}
             onChange={(e) => set('pin', digits(e.target.value))}
@@ -178,10 +244,23 @@ export function StaffManager() {
         <Field label="เบอร์โทร" className="mb-4">
           <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="08x-xxx-xxxx" />
         </Field>
-        <Button block loading={saving} onClick={add}>
-          <UserPlus className="h-[18px] w-[18px]" aria-hidden />
-          เพิ่มรายชื่อ
-        </Button>
+        {editingId ? (
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={cancelEdit} disabled={saving}>
+              <X className="h-[18px] w-[18px]" aria-hidden />
+              ยกเลิก
+            </Button>
+            <Button className="flex-1" loading={saving} onClick={saveEdit}>
+              <Pencil className="h-[17px] w-[17px]" aria-hidden />
+              บันทึกการแก้ไข
+            </Button>
+          </div>
+        ) : (
+          <Button block loading={saving} onClick={add}>
+            <UserPlus className="h-[18px] w-[18px]" aria-hidden />
+            เพิ่มรายชื่อ
+          </Button>
+        )}
       </Card>
 
       <PinDialog target={pinTarget} onClose={() => setPinTarget(null)} onDone={refreshStaff} />

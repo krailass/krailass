@@ -46,7 +46,7 @@ export function navFor(role: UserRole): NavItem[] {
 }
 
 export const ROLE_META: Record<UserRole, { label: string; sub: string }> = {
-  admin: { label: 'หัวหน้าอาคารสถานที่', sub: 'กลุ่มบริหารทั่วไป' },
+  admin: { label: 'หัวหน้างานอาคารสถานที่', sub: 'หัวหน้างานอาคารสถานที่' },
   janitor: { label: 'นักการภารโรง', sub: 'ผู้ปฏิบัติงาน' },
 };
 

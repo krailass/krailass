@@ -97,13 +97,36 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, id: data.user?.id });
 }
 
-// Reset a janitor's PIN (admin).
+interface EditBody {
+  id?: string;
+  full_name?: string;
+  zone?: string;
+  phone?: string;
+  pin?: string;
+}
+
+// Edit a janitor's profile and/or reset their PIN (admin).
+// - PIN-only reset  → `{ id, pin }` (used by the reset dialog).
+// - Profile edit    → `{ id, full_name, zone, phone }` (+ optional `pin` to also change it).
 export async function PATCH(req: NextRequest) {
   const auth = await assertAdmin();
   if (!auth.ok) return NextResponse.json({ error: 'forbidden' }, { status: auth.status });
 
-  const { id, pin } = (await req.json()) as { id?: string; pin?: string };
-  if (!id || !isValidPin(pin)) {
+  const body = (await req.json()) as EditBody;
+  const { id } = body;
+  if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 });
+
+  const wantsProfileEdit =
+    body.full_name !== undefined || body.zone !== undefined || body.phone !== undefined;
+  const wantsPinChange = typeof body.pin === 'string' && body.pin.length > 0;
+
+  if (!wantsProfileEdit && !wantsPinChange) {
+    return NextResponse.json({ error: 'ไม่มีข้อมูลที่จะบันทึก' }, { status: 400 });
+  }
+  if (wantsProfileEdit && !body.full_name?.trim()) {
+    return NextResponse.json({ error: 'กรุณากรอกชื่อ–นามสกุล' }, { status: 400 });
+  }
+  if (wantsPinChange && !isValidPin(body.pin)) {
     return NextResponse.json({ error: 'PIN ต้องเป็นตัวเลข 4 หลัก' }, { status: 400 });
   }
 
@@ -114,17 +137,33 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'service role not configured' }, { status: 500 });
   }
 
-  const { data: dup } = await admin
-    .from('profiles')
-    .select('id')
-    .eq('pin', pin)
-    .neq('id', id)
-    .maybeSingle();
-  if (dup) return NextResponse.json({ error: 'PIN นี้มีผู้ใช้แล้ว กรุณาเลือกเลขอื่น' }, { status: 409 });
+  // Same duplicate-PIN guard as before, only when a PIN change is requested.
+  if (wantsPinChange) {
+    const { data: dup } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('pin', body.pin as string)
+      .neq('id', id)
+      .maybeSingle();
+    if (dup)
+      return NextResponse.json({ error: 'PIN นี้มีผู้ใช้แล้ว กรุณาเลือกเลขอื่น' }, { status: 409 });
 
-  const { error } = await admin.auth.admin.updateUserById(id, { password: derivePassword(pin) });
+    const { error } = await admin.auth.admin.updateUserById(id, {
+      password: derivePassword(body.pin as string),
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  const patch: Record<string, unknown> = {};
+  if (wantsProfileEdit) {
+    patch.full_name = body.full_name?.trim();
+    patch.zone = body.zone?.trim() ?? '';
+    patch.phone = body.phone?.trim() ?? '';
+  }
+  if (wantsPinChange) patch.pin = body.pin;
+
+  const { error } = await admin.from('profiles').update(patch).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  await admin.from('profiles').update({ pin }).eq('id', id);
   return NextResponse.json({ ok: true });
 }
 

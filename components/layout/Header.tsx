@@ -53,7 +53,7 @@ export function Header() {
           </span>
           <div className="hidden leading-tight sm:block">
             <div className="text-[13px] font-semibold">{profile.full_name || meta.label}</div>
-            <div className="text-[11px] text-muted-soft">{profile.role === 'admin' ? meta.sub : profile.zone || meta.label}</div>
+            <div className="text-[11px] text-muted-soft">{profile.zone || (profile.role === 'admin' ? meta.sub : meta.label)}</div>
           </div>
         </div>
         <button
