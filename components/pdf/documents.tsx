@@ -118,9 +118,8 @@ function ImgGrid({ imgs, empty }: { imgs: string[]; empty: string }) {
   );
 }
 
-export function TaskReportDocument(p: TaskReportDocProps) {
+function TaskReportPage(p: TaskReportDocProps) {
   return (
-    <Document>
       <Page size="A4" style={s.page}>
         <View style={s.center}>
           <T style={s.h1}>รายงานการปฏิบัติงานปรับปรุง/ซ่อมแซม/บำรุงรักษาอาคารสถานที่</T>
@@ -192,6 +191,26 @@ export function TaskReportDocument(p: TaskReportDocProps) {
           <Sign role="ผู้อำนวยการโรงเรียน" name={p.signatories.director} />
         </View>
       </Page>
+  );
+}
+
+// One official report per task, on its own A4 page.
+export function TaskReportDocument(p: TaskReportDocProps) {
+  return (
+    <Document>
+      <TaskReportPage {...p} />
+    </Document>
+  );
+}
+
+// Batch: several tasks' official reports in one PDF (one page each), for
+// printing a person's work over a selected period in a single file.
+export function BatchTaskReportDocument({ items }: { items: TaskReportDocProps[] }) {
+  return (
+    <Document>
+      {items.map((it, i) => (
+        <TaskReportPage key={i} {...it} />
+      ))}
     </Document>
   );
 }
