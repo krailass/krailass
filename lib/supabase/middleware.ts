@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from '@/lib/database.types';
 
-const PUBLIC_PATHS = ['/login', '/manifest.webmanifest', '/sw.js'];
+const PUBLIC_PATHS = ['/', '/login', '/manifest.webmanifest', '/sw.js'];
 
 /** Refresh the auth session and gate protected routes. */
 export async function updateSession(request: NextRequest) {

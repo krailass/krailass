@@ -2,8 +2,9 @@
 
 import * as React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogIn, User, Lock, Delete, KeyRound } from 'lucide-react';
+import { LogIn, User, Lock, Delete, KeyRound, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { getSupabaseBrowser } from '@/lib/supabase/client';
 import { usernameToEmail } from '@/lib/utils';
@@ -61,6 +62,13 @@ export function LoginForm() {
           ) : (
             <AdminLogin loading={loading} setLoading={setLoading} onSuccess={afterLogin} onSwitch={() => setMode('pin')} />
           )}
+
+          <Link
+            href="/"
+            className="mx-auto mt-8 flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-muted-soft transition-colors hover:text-brand"
+          >
+            <Eye className="h-4 w-4" aria-hidden /> ดูภาพรวมงานนักการ (ไม่ต้องเข้าสู่ระบบ)
+          </Link>
         </div>
       </div>
     </div>
