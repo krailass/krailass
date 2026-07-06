@@ -40,10 +40,11 @@ const s = StyleSheet.create({
   checkbox: { width: 13, height: 13, border: '1 solid #333', textAlign: 'center', fontSize: 10, marginRight: 5 },
   signGrid: { flexDirection: 'row', gap: 16, marginTop: 18 },
   signCol: { flex: 1, fontSize: 10.5 },
-  signName: { textAlign: 'center', fontSize: 10.5 },
+  sign: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', marginTop: 6 },
+  signBlank: { alignItems: 'center' },
   approveTitle: { fontSize: 10.5, fontWeight: 700, marginTop: 12 },
   dots: { marginTop: 9, height: 9, borderBottomWidth: 1, borderBottomColor: '#666', borderStyle: 'dashed' },
-  approveSign: { textAlign: 'center', marginTop: 8, fontSize: 10.5 },
+  directorBlock: { marginTop: 14, alignItems: 'center' },
   // summary
   tiles: { flexDirection: 'row', gap: 5, marginVertical: 10 },
   tile: { flex: 1, border: '1 solid #e2e2e2', borderRadius: 5, padding: 5, textAlign: 'center' },
@@ -86,6 +87,22 @@ export interface TaskReportDocProps {
   beforeImgs: string[];
   afterImgs: string[];
   signatories: Signatories;
+}
+
+// A signature: "ลงชื่อ ......(blank)...... [role]" with the (name) centered
+// directly under the dotted blank. justifyContent centers the whole unit within
+// its parent — so it centers in a column, or across the page for the director.
+function Sign({ role, name }: { role: string; name: string }) {
+  return (
+    <View style={s.sign}>
+      <T>ลงชื่อ</T>
+      <View style={s.signBlank}>
+        <T>...............................</T>
+        <T>({name})</T>
+      </View>
+      <T>{' ' + role}</T>
+    </View>
+  );
 }
 
 function ImgGrid({ imgs, empty }: { imgs: string[]; empty: string }) {
@@ -153,30 +170,26 @@ export function TaskReportDocument(p: TaskReportDocProps) {
         <View style={s.signGrid}>
           {/* Left column: preparer + general-affairs head */}
           <View style={s.signCol}>
-            <T>ลงชื่อ ................................ผู้จัดทำข้อมูล</T>
-            <T style={s.signName}>({p.signatories.preparer})</T>
-
+            <Sign role="ผู้จัดทำข้อมูล" name={p.signatories.preparer} />
             <T style={s.approveTitle}>ความเห็นของหัวหน้ากลุ่มบริหารทั่วไป</T>
             <View style={s.dots} />
-            <T style={s.approveSign}>ลงชื่อ ............................. หัวหน้ากลุ่มบริหารทั่วไป</T>
-            <T style={s.signName}>({p.signatories.generalAffairsHead})</T>
+            <Sign role="หัวหน้ากลุ่มบริหารทั่วไป" name={p.signatories.generalAffairsHead} />
           </View>
 
-          {/* Right column: operator + deputy + director */}
+          {/* Right column: operator + deputy */}
           <View style={s.signCol}>
-            <T>ลงชื่อ ..........................ผู้ควบคุมและดำเนินงาน</T>
-            <T style={s.signName}>({p.signatories.operator})</T>
-
+            <Sign role="ผู้ควบคุมและดำเนินงาน" name={p.signatories.operator} />
             <T style={s.approveTitle}>ความเห็นของรองผู้อำนวยการโรงเรียน</T>
             <View style={s.dots} />
-            <T style={s.approveSign}>ลงชื่อ ............................. รองผู้อำนวยการโรงเรียน</T>
-            <T style={s.signName}>({p.signatories.deputyDirector})</T>
-
-            <T style={s.approveTitle}>ความเห็นของผู้อำนวยการโรงเรียน</T>
-            <View style={s.dots} />
-            <T style={s.approveSign}>ลงชื่อ ............................. ผู้อำนวยการโรงเรียน</T>
-            <T style={s.signName}>({p.signatories.director})</T>
+            <Sign role="รองผู้อำนวยการโรงเรียน" name={p.signatories.deputyDirector} />
           </View>
+        </View>
+
+        {/* Director — centered across the whole page */}
+        <View style={s.directorBlock}>
+          <T style={[s.approveTitle, s.center]}>ความเห็นของผู้อำนวยการโรงเรียน</T>
+          <View style={[s.dots, { width: '55%' }]} />
+          <Sign role="ผู้อำนวยการโรงเรียน" name={p.signatories.director} />
         </View>
       </Page>
     </Document>
