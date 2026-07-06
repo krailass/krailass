@@ -4,7 +4,7 @@ import { Stats } from '@/components/janitor/Stats';
 export default function StatsPage() {
   return (
     <>
-      <PageHeader sub="ผู้ปฏิบัติงาน" title="สรุปและสถิติการทำงาน" />
+      <PageHeader sub="ผู้ปฏิบัติงาน" title="สถิติการทำงานของฉัน" />
       <Stats />
     </>
   );

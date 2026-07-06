@@ -1,23 +1,18 @@
 'use client';
 
-import * as React from 'react';
 import { useTasks, useCategories } from '@/hooks/useAppData';
 import { useProfile } from '@/components/layout/ProfileContext';
 import { Card } from '@/components/ui/primitives';
 import { Loading } from '@/components/ui/states';
-import { categoryColor, pct, periodRange, inPeriod } from '@/lib/utils';
-import { PERIOD_TAB, PERIOD_LABEL, type SummaryPeriod } from '@/lib/constants';
-import { SummaryPdfButton } from '@/components/pdf/SummaryPdfButton';
+import { categoryColor, pct } from '@/lib/utils';
 
-const PERIODS: SummaryPeriod[] = ['day', 'week', 'month', 'year'];
-
+// Read-only personal stats for a janitor. The per-person PDF export lives on the
+// admin side (/admin/reports → PersonSummaryReport), where an admin picks whose
+// summary to export.
 export function Stats() {
-  const { userId, profile } = useProfile();
+  const { userId } = useProfile();
   const { data: tasks, isLoading } = useTasks();
   const { data: categories = [] } = useCategories();
-  const [period, setPeriod] = React.useState<SummaryPeriod>('month');
-
-  const ref = React.useMemo(() => new Date(), []);
 
   if (isLoading) return <Loading />;
 
@@ -33,8 +28,6 @@ export function Stats() {
   const catData = categories
     .map((c) => ({ name: c.name, n: mine.filter((t) => t.category === c.name).length }))
     .filter((c) => c.n > 0);
-
-  const periodTasks = mine.filter((t) => inPeriod(t.assigned_date || t.due_date, period, ref));
 
   const tiles = [
     { label: 'งานที่รับผิดชอบ', value: total, color: '#0F766E' },
@@ -80,35 +73,6 @@ export function Stats() {
             })}
           </div>
         )}
-      </Card>
-
-      <Card className="mt-4 p-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-[180px] flex-1 text-[15px] font-bold">ออกรายงานสรุปรายบุคคล (PDF)</div>
-          <div className="flex flex-wrap gap-2">
-            {PERIODS.map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                  period === p ? 'border-brand bg-brand text-white' : 'border-line bg-card text-[#5A6772]'
-                }`}
-              >
-                {PERIOD_TAB[p]}
-              </button>
-            ))}
-          </div>
-          <SummaryPdfButton
-            profile={profile}
-            period={period}
-            periodLabel={PERIOD_LABEL[period]}
-            rangeText={periodRange(period, ref)}
-            tasks={periodTasks}
-          />
-        </div>
-        <div className="mt-2 text-[12.5px] text-muted-soft">
-          เอกสารสรุปผลการปฏิบัติงานของ {profile.full_name} — {PERIOD_LABEL[period]} ({periodRange(period, ref)})
-        </div>
       </Card>
     </div>
   );
