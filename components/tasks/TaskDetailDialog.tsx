@@ -1,9 +1,10 @@
 'use client';
 
 import * as Dialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
+import { X, Pencil, Trash2 } from 'lucide-react';
 import type { DecoratedTask } from '@/lib/task-view';
 import { StatusPill, CategoryBadge, UrgentBadge, ApprovalBadge } from '@/components/ui/badges';
+import { Button } from '@/components/ui/primitives';
 import { TaskPhotos } from '@/components/tasks/TaskPhotos';
 import { AttachmentPhotos } from '@/components/tasks/AttachmentPhotos';
 import { fmtThaiDate, hhmm } from '@/lib/utils';
@@ -20,10 +21,16 @@ function Row({ label, value }: { label: string; value: string }) {
 export function TaskDetailDialog({
   task,
   onClose,
+  onEdit,
+  onDelete,
 }: {
   task: DecoratedTask | null;
   onClose: () => void;
+  // When provided, an admin can edit/delete a task that isn't done yet.
+  onEdit?: (t: DecoratedTask) => void;
+  onDelete?: (t: DecoratedTask) => void;
 }) {
+  const canManage = task != null && task.status !== 'done' && (onEdit != null || onDelete != null);
   return (
     <Dialog.Root open={task != null} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
@@ -84,6 +91,23 @@ export function TaskDetailDialog({
                   </div>
                 )}
               </div>
+
+              {canManage && (
+                <div className="flex justify-end gap-2 border-t border-line p-4">
+                  {onEdit && (
+                    <Button variant="secondary" size="sm" onClick={() => onEdit(task)}>
+                      <Pencil className="h-4 w-4" aria-hidden />
+                      แก้ไข
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button variant="danger" size="sm" onClick={() => onDelete(task)}>
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                      ลบงาน
+                    </Button>
+                  )}
+                </div>
+              )}
             </>
           )}
         </Dialog.Content>

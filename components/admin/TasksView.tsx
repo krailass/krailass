@@ -2,12 +2,18 @@
 
 import * as React from 'react';
 import { CalendarDays, List } from 'lucide-react';
-import { useTasks, useJanitors } from '@/hooks/useAppData';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { getSupabaseBrowser } from '@/lib/supabase/client';
+import { deleteTask, type SB } from '@/lib/api';
+import { useTasks, useJanitors, qk } from '@/hooks/useAppData';
 import type { DecoratedTask } from '@/lib/task-view';
+import { useConfirm } from '@/components/ui/confirm';
 import { Loading, ErrorBox } from '@/components/ui/states';
 import { Select } from '@/components/ui/form';
 import { TasksCalendar } from './TasksCalendar';
 import { TasksTable } from './TasksTable';
+import { EditTaskDialog } from './EditTaskDialog';
 import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog';
 
 type View = 'calendar' | 'list';
@@ -15,9 +21,30 @@ type View = 'calendar' | 'list';
 export function TasksView() {
   const { data: tasks, isLoading, error } = useTasks();
   const { data: janitors = [] } = useJanitors();
+  const qc = useQueryClient();
+  const confirm = useConfirm();
   const [view, setView] = React.useState<View>('calendar');
   const [assignee, setAssignee] = React.useState('all');
   const [detail, setDetail] = React.useState<DecoratedTask | null>(null);
+  const [editing, setEditing] = React.useState<DecoratedTask | null>(null);
+
+  async function handleDelete(t: DecoratedTask) {
+    const ok = await confirm({
+      title: 'ลบงานนี้',
+      description: `ต้องการลบงาน "${t.title}" ใช่หรือไม่? งานและรูปภาพที่เกี่ยวข้องจะถูกลบถาวร`,
+      confirmText: 'ลบงาน',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await deleteTask(getSupabaseBrowser() as SB, t.id);
+      await qc.invalidateQueries({ queryKey: qk.tasks });
+      toast.success('ลบงานแล้ว');
+      setDetail(null);
+    } catch (e) {
+      toast.error('ลบไม่สำเร็จ: ' + (e instanceof Error ? e.message : 'ข้อผิดพลาด'));
+    }
+  }
 
   if (isLoading) return <Loading />;
   if (error) return <ErrorBox error={error} />;
@@ -69,7 +96,16 @@ export function TasksView() {
         <TasksTable tasks={filtered} onSelectTask={setDetail} />
       )}
 
-      <TaskDetailDialog task={detail} onClose={() => setDetail(null)} />
+      <TaskDetailDialog
+        task={detail}
+        onClose={() => setDetail(null)}
+        onEdit={(t) => {
+          setDetail(null);
+          setEditing(t);
+        }}
+        onDelete={handleDelete}
+      />
+      <EditTaskDialog task={editing} onClose={() => setEditing(null)} />
     </div>
   );
 }

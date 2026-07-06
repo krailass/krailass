@@ -63,6 +63,31 @@ export async function advanceTask(sb: SB, id: string): Promise<void> {
   if (error) throw error;
 }
 
+export interface UpdateTaskInput {
+  title?: string;
+  reporter?: string | null;
+  location?: string | null;
+  category?: string | null;
+  assignee_id?: string | null;
+  priority?: 'normal' | 'urgent';
+  due_date?: string | null;
+  assigned_date?: string | null;
+  assigned_time?: string | null;
+  materials?: string | null;
+}
+
+// Admin-only (enforced by RLS). Edit an existing task's assignment details.
+export async function updateTask(sb: SB, id: string, patch: UpdateTaskInput): Promise<void> {
+  const { error } = await sb.from('tasks').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+// Admin-only (enforced by RLS). Deleting a task cascades its photos.
+export async function deleteTask(sb: SB, id: string): Promise<void> {
+  const { error } = await sb.from('tasks').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export interface SubmitReportInput {
   place?: string;
   materials?: string;
