@@ -14,6 +14,7 @@ import { useProfile } from '@/components/layout/ProfileContext';
 import { Card, Button } from '@/components/ui/primitives';
 import { Field, Input, Textarea, Select } from '@/components/ui/form';
 import { Loading } from '@/components/ui/states';
+import { AttachmentPhotos } from '@/components/tasks/AttachmentPhotos';
 import { PhotoUploader } from './PhotoUploader';
 
 interface Fields {
@@ -168,6 +169,12 @@ export function ReportForm({ adminMode = false }: { adminMode?: boolean }) {
             ))}
           </Select>
         </Field>
+
+        {taskId && (
+          <div className="mb-4">
+            <AttachmentPhotos taskId={taskId} title="รูปแนบจากผู้มอบหมาย (ตัวอย่างงาน)" />
+          </div>
+        )}
 
         <div className="mb-4 grid gap-3.5 sm:grid-cols-2">
           <Field label="สถานที่ปฏิบัติงาน">

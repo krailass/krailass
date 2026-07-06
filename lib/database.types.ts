@@ -6,7 +6,7 @@ export type UserRole = 'admin' | 'janitor';
 export type TaskStatus = 'pending' | 'progress' | 'done';
 export type ApprovalStatus = 'waiting' | 'approved';
 export type TaskPriority = 'normal' | 'urgent';
-export type PhotoKind = 'before' | 'after';
+export type PhotoKind = 'before' | 'after' | 'attachment';
 
 export interface ProfileRow {
   id: string;
@@ -54,6 +54,7 @@ export interface TaskRow {
   time_start: string | null;
   time_end: string | null;
   note: string | null;
+  job_group: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;

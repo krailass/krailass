@@ -41,6 +41,7 @@ export interface CreateTaskInput {
   assigned_date?: string | null;
   assigned_time?: string | null;
   materials?: string;
+  job_group?: string | null;
 }
 
 export async function createTask(

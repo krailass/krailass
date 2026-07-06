@@ -6,14 +6,18 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Plus, Settings2 } from 'lucide-react';
 import { getSupabaseBrowser } from '@/lib/supabase/client';
-import { createTask, createLocation, createCategory } from '@/lib/api';
+import { createTask, createLocation, createCategory, type SB } from '@/lib/api';
+import { uploadTaskPhotos } from '@/lib/photos';
 import { notify } from '@/lib/notify';
 import { useJanitors, useCategories, useLocations, qk } from '@/hooks/useAppData';
 import { useProfile } from '@/components/layout/ProfileContext';
 import { CATEGORY_PALETTE } from '@/lib/constants';
 import { Card, Button } from '@/components/ui/primitives';
 import { Field, Input, Select } from '@/components/ui/form';
+import { PhotoUploader } from '@/components/janitor/PhotoUploader';
 import { OptionsManagerDialog } from './OptionsManagerDialog';
+
+const MAX_ATTACHMENTS = 4;
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -27,7 +31,6 @@ interface FormState {
   reporter: string;
   location: string;
   category: string;
-  assignee_id: string;
   priority: 'normal' | 'urgent';
   due_date: string;
   assigned_date: string;
@@ -43,19 +46,24 @@ export function AssignForm() {
   const { data: locations = [] } = useLocations();
   const [saving, setSaving] = React.useState(false);
   const [manager, setManager] = React.useState<'location' | 'category' | null>(null);
+  const [assignees, setAssignees] = React.useState<string[]>([]);
+  const [attachments, setAttachments] = React.useState<File[]>([]);
 
   const [form, setForm] = React.useState<FormState>({
     title: '',
     reporter: '',
     location: '',
     category: '',
-    assignee_id: '',
     priority: 'normal',
     due_date: '',
     assigned_date: today(),
     assigned_time: nowTime(),
     materials: '',
   });
+
+  function toggleAssignee(id: string) {
+    setAssignees((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
+  }
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -69,13 +77,8 @@ export function AssignForm() {
     prefilledRef.current = true;
     const date = params.get('date');
     const asg = params.get('assignee');
-    if (date || asg) {
-      setForm((f) => ({
-        ...f,
-        ...(date ? { assigned_date: date } : {}),
-        ...(asg && asg !== 'all' ? { assignee_id: asg } : {}),
-      }));
-    }
+    if (date) setForm((f) => ({ ...f, assigned_date: date }));
+    if (asg && asg !== 'all') setAssignees([asg]);
   }, [params]);
 
   async function submit() {
@@ -83,13 +86,13 @@ export function AssignForm() {
       toast.error('กรุณากรอกลักษณะงาน');
       return;
     }
-    if (!form.assignee_id) {
-      toast.error('กรุณาเลือกผู้รับผิดชอบ');
+    if (assignees.length === 0) {
+      toast.error('กรุณาเลือกผู้รับผิดชอบอย่างน้อย 1 คน');
       return;
     }
     setSaving(true);
     try {
-      const sb = getSupabaseBrowser();
+      const sb = getSupabaseBrowser() as SB;
 
       // Auto-add newly typed location / category to their pickers (best-effort).
       const loc = form.location.trim();
@@ -112,32 +115,49 @@ export function AssignForm() {
         }
       }
 
-      const task = await createTask(
-        sb,
-        {
-          title: form.title.trim(),
-          reporter: form.reporter || undefined,
-          location: form.location || undefined,
-          category: form.category || undefined,
-          assignee_id: form.assignee_id,
-          priority: form.priority,
-          due_date: form.due_date || null,
-          assigned_date: form.assigned_date || null,
-          assigned_time: form.assigned_time || null,
-          materials: form.materials || undefined,
-        },
-        userId,
-      );
-      await qc.invalidateQueries({ queryKey: qk.tasks });
+      // Multiple assignees → one independent task each, linked by a shared
+      // job_group (งานใครงานมัน). Single assignee → no group.
+      const multi = assignees.length > 1;
+      const jobGroup = multi ? crypto.randomUUID() : null;
       const isUrgent = form.priority === 'urgent';
-      notify({
-        target: { userId: form.assignee_id },
-        title: isUrgent ? 'งานเร่งด่วน! ได้รับมอบหมายงานใหม่' : 'ได้รับมอบหมายงานใหม่',
-        body: form.title.trim(),
-        taskId: task.id,
-        type: isUrgent ? 'urgent' : 'assigned',
-      });
-      toast.success('มอบหมายงานใหม่เรียบร้อย');
+      const base = {
+        title: form.title.trim(),
+        reporter: form.reporter || undefined,
+        location: form.location || undefined,
+        category: form.category || undefined,
+        priority: form.priority,
+        due_date: form.due_date || null,
+        assigned_date: form.assigned_date || null,
+        assigned_time: form.assigned_time || null,
+        materials: form.materials || undefined,
+        job_group: jobGroup,
+      };
+
+      for (const aid of assignees) {
+        const task = await createTask(sb, { ...base, assignee_id: aid }, userId);
+        // Attach the same reference photos to each person's task.
+        if (attachments.length) {
+          try {
+            await uploadTaskPhotos(sb, task.id, 'attachment', attachments, userId);
+          } catch {
+            /* photo upload is best-effort; task is already created */
+          }
+        }
+        notify({
+          target: { userId: aid },
+          title: isUrgent ? 'งานเร่งด่วน! ได้รับมอบหมายงานใหม่' : 'ได้รับมอบหมายงานใหม่',
+          body: form.title.trim(),
+          taskId: task.id,
+          type: isUrgent ? 'urgent' : 'assigned',
+        });
+      }
+
+      await qc.invalidateQueries({ queryKey: qk.tasks });
+      toast.success(
+        multi ? `แตกงานให้ ${assignees.length} คนเรียบร้อย` : 'มอบหมายงานใหม่เรียบร้อย',
+      );
+      setAssignees([]);
+      setAttachments([]);
       setForm((f) => ({
         ...f,
         title: '',
@@ -227,17 +247,35 @@ export function AssignForm() {
           </div>
         </div>
 
-        <div className="mb-4 grid gap-3.5 sm:grid-cols-3">
-          <Field label="ผู้รับผิดชอบ">
-            <Select value={form.assignee_id} onChange={(e) => set('assignee_id', e.target.value)}>
-              <option value="">— เลือกนักการ —</option>
-              {janitors.map((j) => (
-                <option key={j.id} value={j.id}>
+        <Field label="ผู้รับผิดชอบ (เลือกได้มากกว่า 1 คน)" className="mb-4">
+          <div className="flex flex-wrap gap-2">
+            {janitors.map((j) => {
+              const on = assignees.includes(j.id);
+              return (
+                <button
+                  type="button"
+                  key={j.id}
+                  onClick={() => toggleAssignee(j.id)}
+                  aria-pressed={on}
+                  className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                    on
+                      ? 'border-brand bg-brand text-white'
+                      : 'border-line bg-card text-[#5A6772] hover:bg-canvas'
+                  }`}
+                >
                   {j.full_name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+                </button>
+              );
+            })}
+          </div>
+          {assignees.length > 1 && (
+            <div className="mt-2 text-[11.5px] font-medium text-brand">
+              จะแตกเป็นงานแยกให้แต่ละคน ({assignees.length} งาน) — งานใครงานมัน
+            </div>
+          )}
+        </Field>
+
+        <div className="mb-4 grid gap-3.5 sm:grid-cols-2">
           <Field label="ความสำคัญ">
             <Select
               value={form.priority}
@@ -269,13 +307,22 @@ export function AssignForm() {
           </Field>
         </div>
 
-        <Field label="วัสดุอุปกรณ์ที่ใช้ (ถ้ามี)" className="mb-5">
+        <Field label="วัสดุอุปกรณ์ที่ใช้ (ถ้ามี)" className="mb-4">
           <Input
             value={form.materials}
             onChange={(e) => set('materials', e.target.value)}
             placeholder="เช่น บานพับ, สกรู, ไขควง"
           />
         </Field>
+
+        <div className="mb-5">
+          <PhotoUploader
+            label="รูปแนบงาน (ให้นักการดูเป็นตัวอย่าง)"
+            files={attachments}
+            onChange={setAttachments}
+            max={MAX_ATTACHMENTS}
+          />
+        </div>
 
         <Button size="lg" block loading={saving} onClick={submit}>
           <Plus className="h-[18px] w-[18px]" aria-hidden />

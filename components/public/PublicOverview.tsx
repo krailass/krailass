@@ -280,6 +280,7 @@ function PublicDetail({ task, onClose }: { task: PublicTask | null; onClose: () 
     };
   }, [task]);
 
+  const attach = (photos ?? []).filter((p) => p.kind === 'attachment');
   const before = (photos ?? []).filter((p) => p.kind === 'before');
   const after = (photos ?? []).filter((p) => p.kind === 'after');
 
@@ -326,6 +327,24 @@ function PublicDetail({ task, onClose }: { task: PublicTask | null; onClose: () 
                   <Row label="วัสดุอุปกรณ์" value={task.materials || '—'} />
                   {task.note && <Row label="รายละเอียด/ผล" value={task.note} />}
                 </div>
+
+                {attach.length > 0 && (
+                  <div className="mt-4">
+                    <div className="mb-2 text-[12.5px] font-semibold text-[#4A574F]">รูปแนบงาน</div>
+                    <div className="flex flex-wrap gap-2">
+                      {attach.map((p) => (
+                        <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="flex-none">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={p.url}
+                            alt=""
+                            className="h-20 w-20 rounded-lg border border-line object-cover"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-4">
                   <div className="mb-2 text-[12.5px] font-semibold text-[#4A574F]">

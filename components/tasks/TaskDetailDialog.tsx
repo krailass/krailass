@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import type { DecoratedTask } from '@/lib/task-view';
 import { StatusPill, CategoryBadge, UrgentBadge, ApprovalBadge } from '@/components/ui/badges';
 import { TaskPhotos } from '@/components/tasks/TaskPhotos';
+import { AttachmentPhotos } from '@/components/tasks/AttachmentPhotos';
 import { fmtThaiDate, hhmm } from '@/lib/utils';
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -70,6 +71,10 @@ export function TaskDetailDialog({
                   )}
                   <Row label="วัสดุอุปกรณ์" value={task.materials || '—'} />
                   {task.note && <Row label="รายละเอียด/ผล" value={task.note} />}
+                </div>
+
+                <div className="mt-4 empty:mt-0">
+                  <AttachmentPhotos taskId={task.id} />
                 </div>
 
                 {task.status === 'done' && (
