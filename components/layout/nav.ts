@@ -5,6 +5,7 @@ import {
   Plus,
   UserCog,
   CheckCircle2,
+  ClipboardCheck,
   FileText,
   ClipboardList,
   BarChart3,
@@ -28,6 +29,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/tasks', label: 'งานทั้งหมด', icon: ListChecks },
   { href: '/admin/assign', label: 'มอบหมายงาน', icon: Plus },
   { href: '/admin/staff', label: 'จัดการนักการ', icon: UserCog },
+  { href: '/admin/report', label: 'บันทึกผลงาน', icon: ClipboardCheck },
   { href: '/admin/approve', label: 'ตรวจ & อนุมัติ', icon: CheckCircle2 },
   { href: '/admin/reports', label: 'รายงาน PDF', icon: FileText },
   { href: '/admin/about', label: 'เกี่ยวกับระบบ', icon: QrCode },
@@ -78,6 +80,7 @@ export function bottomBarFor(role: UserRole): BottomBar {
         items: [
           at('/dashboard/by-person'),
           at('/admin/staff'),
+          at('/admin/report'),
           at('/admin/reports'),
           at('/admin/about'),
         ],

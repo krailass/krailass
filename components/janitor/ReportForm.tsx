@@ -24,7 +24,10 @@ interface Fields {
   time_end: string;
 }
 
-export function ReportForm() {
+// `adminMode` lets an admin record a before/after report on behalf of any
+// janitor (all not-done tasks, labelled by assignee). Default is a janitor
+// reporting on their own assigned tasks.
+export function ReportForm({ adminMode = false }: { adminMode?: boolean }) {
   const { userId } = useProfile();
   const router = useRouter();
   const params = useSearchParams();
@@ -43,9 +46,12 @@ export function ReportForm() {
   const [after, setAfter] = React.useState<File[]>([]);
   const [saving, setSaving] = React.useState(false);
 
-  const mine = React.useMemo(
-    () => (tasks ?? []).filter((t) => t.assignee_id === userId && t.status !== 'done'),
-    [tasks, userId],
+  const available = React.useMemo(
+    () =>
+      (tasks ?? []).filter(
+        (t) => t.status !== 'done' && (adminMode || t.assignee_id === userId),
+      ),
+    [tasks, userId, adminMode],
   );
 
   // Preselect from ?task= exactly once (after tasks load). A ref guard prevents
@@ -54,10 +60,10 @@ export function ReportForm() {
   React.useEffect(() => {
     if (preselectedRef.current || !tasks) return;
     const q = params.get('task');
-    if (q && mine.some((t) => t.id === q)) {
+    if (q && available.some((t) => t.id === q)) {
       preselectedRef.current = true;
       setTaskId(q);
-      const t = mine.find((x) => x.id === q);
+      const t = available.find((x) => x.id === q);
       if (t) {
         setFields((f) => ({
           ...f,
@@ -66,7 +72,7 @@ export function ReportForm() {
           note: t.note || '',
         }));
       }
-    } else if (mine.length > 0) {
+    } else if (available.length > 0) {
       // Tasks are loaded but there's no valid ?task= to apply — stop trying.
       preselectedRef.current = true;
     }
@@ -79,7 +85,7 @@ export function ReportForm() {
 
   function onPickTask(id: string) {
     setTaskId(id);
-    const t = mine.find((x) => x.id === id);
+    const t = available.find((x) => x.id === id);
     setFields((f) => ({
       ...f,
       place: t?.place || t?.location || '',
@@ -106,16 +112,31 @@ export function ReportForm() {
         time_end: fields.time_end,
       });
       await qc.invalidateQueries({ queryKey: qk.tasks });
-      const t = mine.find((x) => x.id === taskId);
-      notify({
-        target: { role: 'admin' },
-        title: 'มีงานรายงานเสร็จรอตรวจ',
-        body: t?.title,
-        taskId,
-        type: 'reported',
-      });
-      toast.success('ส่งรายงานเรียบร้อย รอหัวหน้าตรวจ');
-      router.push('/janitor/board');
+      const t = available.find((x) => x.id === taskId);
+      if (adminMode) {
+        // Recorded on behalf of the janitor — let the assignee know.
+        if (t?.assignee_id) {
+          notify({
+            target: { userId: t.assignee_id },
+            title: 'หัวหน้าบันทึกผลงานให้แล้ว',
+            body: t?.title,
+            taskId,
+            type: 'reported',
+          });
+        }
+        toast.success('บันทึกรายงานเรียบร้อย');
+        router.push('/admin/tasks');
+      } else {
+        notify({
+          target: { role: 'admin' },
+          title: 'มีงานรายงานเสร็จรอตรวจ',
+          body: t?.title,
+          taskId,
+          type: 'reported',
+        });
+        toast.success('ส่งรายงานเรียบร้อย รอหัวหน้าตรวจ');
+        router.push('/janitor/board');
+      }
     } catch (e) {
       toast.error('ส่งรายงานไม่สำเร็จ: ' + (e instanceof Error ? e.message : 'ข้อผิดพลาด'));
     } finally {
@@ -128,17 +149,21 @@ export function ReportForm() {
   return (
     <div className="max-w-3xl animate-fadeUp">
       <Card className="p-6">
-        <div className="text-[15.5px] font-bold">รายงานผลการปฏิบัติงานที่ได้รับมอบหมาย</div>
+        <div className="text-[15.5px] font-bold">
+          {adminMode ? 'บันทึกผลการปฏิบัติงาน (แทนนักการ)' : 'รายงานผลการปฏิบัติงานที่ได้รับมอบหมาย'}
+        </div>
         <div className="mb-4 mt-1 text-[12.5px] text-muted-soft">
-          กรอกผลการทำงาน แนบภาพก่อน–หลัง แล้วส่งให้หัวหน้าอาคารสถานที่ตรวจ
+          {adminMode
+            ? 'เลือกงานของนักการ กรอกผลงาน แนบภาพก่อน–หลัง แล้วบันทึกแทนได้'
+            : 'กรอกผลการทำงาน แนบภาพก่อน–หลัง แล้วส่งให้หัวหน้าอาคารสถานที่ตรวจ'}
         </div>
 
-        <Field label="เลือกงานที่จะรายงาน" className="mb-4">
+        <Field label={adminMode ? 'เลือกงานที่จะบันทึกผล' : 'เลือกงานที่จะรายงาน'} className="mb-4">
           <Select value={taskId} onChange={(e) => onPickTask(e.target.value)}>
             <option value="">— เลือกงาน —</option>
-            {mine.map((t) => (
+            {available.map((t) => (
               <option key={t.id} value={t.id}>
-                {t.title}
+                {adminMode ? `${t.title} — ${t.assigneeName}` : t.title}
               </option>
             ))}
           </Select>
@@ -175,7 +200,7 @@ export function ReportForm() {
 
         <Button size="lg" block loading={saving} onClick={submit} className="mt-5">
           <Send className="h-[18px] w-[18px]" aria-hidden />
-          ส่งรายงานการปฏิบัติงาน
+          {adminMode ? 'บันทึกผลการปฏิบัติงาน' : 'ส่งรายงานการปฏิบัติงาน'}
         </Button>
       </Card>
     </div>
