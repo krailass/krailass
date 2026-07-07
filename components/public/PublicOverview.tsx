@@ -250,13 +250,14 @@ function PhotoCol({ title, photos }: { title: string; photos: PublicPhoto[] }) {
       ) : (
         <div className="grid grid-cols-2 gap-1.5">
           {photos.map((p) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={p.id}
-              src={p.url}
-              alt=""
-              className="aspect-square w-full rounded-lg border border-line object-cover"
-            />
+            <a key={p.id} href={p.url} target="_blank" rel="noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={p.url}
+                alt=""
+                className="aspect-square w-full rounded-lg border border-line object-cover transition-opacity hover:opacity-90"
+              />
+            </a>
           ))}
         </div>
       )}
