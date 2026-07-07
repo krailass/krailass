@@ -16,13 +16,14 @@ function Grid({ photos, empty }: { photos: TaskPhoto[]; empty: string }) {
   return (
     <div className="flex flex-wrap gap-2">
       {photos.map((p) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={p.id}
-          src={p.url}
-          alt=""
-          className="h-16 w-16 rounded-lg border border-line object-cover"
-        />
+        <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="flex-none">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={p.url}
+            alt=""
+            className="h-16 w-16 rounded-lg border border-line object-cover transition-opacity hover:opacity-90"
+          />
+        </a>
       ))}
     </div>
   );
